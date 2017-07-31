@@ -6,7 +6,8 @@ opts.writeResults = 0;
 %                                          Train encoders and compute codes
 % -------------------------------------------------------------------------
 
-if ~exist(opts.resultPath)
+resultPath = [opts.resultPath(1:end-4), opts.classifier, '.mat'];
+if ~exist(resultPath)
   psi = {} ;
   psit = {};
   for i = 1:numel(opts.encoders)
@@ -19,6 +20,18 @@ if ~exist(opts.resultPath)
             else
               encoder.net = vl_simplenn_move(encoder.net, 'cpu') ;
               encoder.net.useGpu = false ;
+            end
+            if ~isfield(encoder.net, 'normalization')
+              encoder.net.normalization = encoder.net.meta.normalization ;
+              encoder.net.inputs = encoder.net.meta.inputs ;
+              encoder.net.classes = encoder.net.meta.classes ;
+            else
+              for l=1:numel(encoder.net.layers)
+                encoder.net.layers{l}.dilate = 1 ;
+                encoder.net.layers{l}.opts = {} ;
+                encoder.net.layers{l}.leak = 0 ;
+                encoder.net.layers{l}.precious = 0 ;
+              end
             end
         end
       else
@@ -48,13 +61,13 @@ end
 %                                                            Train and test
 % -------------------------------------------------------------------------
 
-if exist(opts.resultPath)
-  info = load(opts.resultPath) ;
+if exist(resultPath)
+  info = load(resultPath) ;
 else
   info = traintest(opts, imdb, psi) ;
-  save(opts.resultPath, '-struct', 'info') ;
+  save(resultPath, '-struct', 'info') ;
   vl_printsize(1) ;
-  [a,b,c] = fileparts(opts.resultPath) ;
+  [a,b,c] = fileparts(resultPath) ;
   print('-dpdf', fullfile(a, [b '.pdf'])) ;
 end
 
@@ -67,11 +80,12 @@ if isfield(info.test, 'acc')
   str{end+1} = sprintf(' per pixel acc: %6.1f (msrc: %6.1f)', info.test.acc*100, info.test.msrcAcc*100) ;
   str{end+1} = sprintf(' per segment acc: %6.1f', info.test.psAcc*100) ;
 end
+str{end+1} = sprintf('; %s', opts.classifier) ;
 str{end+1} = sprintf('\n') ;
 str = cat(2, str{:}) ;
 fprintf('%s', str) ;
 
-[a,b,c] = fileparts(opts.resultPath) ;
+[a,b,c] = fileparts(resultPath) ;
 txtPath = fullfile(a, [b '.txt']) ;
 f=fopen(txtPath, 'w') ;
 fprintf(f, '%s', str) ;
@@ -147,18 +161,34 @@ for c=1:numel(info.classes)
   nn = sum(y(train) < 0) ;
   n = np + nn ;
 
-  [w{c},b{c}] = vl_svmtrain(psi(:,train & y ~= 0), y(train & y ~= 0), 1/(n* C), ...
-    'epsilon', 0.001, 'verbose', 'biasMultiplier', 1, ...
-    'maxNumIterations', n * 200) ;
+  switch opts.classifier
+    case ''
+      [w{c},b{c}] = vl_svmtrain(psi(:,train & y ~= 0), y(train & y ~= 0), 1/(n* C), ...
+        'epsilon', 0.001, 'verbose', 'biasMultiplier', 1, ...
+        'maxNumIterations', n * 200) ;
+      pred = w{c}'*psi + b{c} ;
 
-  pred = w{c}'*psi + b{c} ;
+      % try cheap calibration
+      mp = median(pred(train & y > 0)) ;
+      mn = median(pred(train & y < 0)) ;
+      b{c} = (b{c} - mn) / (mp - mn) ;
+      w{c} = w{c} / (mp - mn) ;
+      pred = w{c}'*psi + b{c} ;
+    case {'-linear', '-polynomial', '-rbf'}
+      Mdl = fitcsvm(psi(:,train & y ~= 0)', y(train & y ~= 0), ...
+          'KernelFunction', opts.classifier(2:end), ...
+          'OptimizeHyperparameters', 'auto', ...
+          'HyperparameterOptimizationOptions', struct('ShowPlots', false)) ;
+      disp(Mdl.KernelParameters) ;
+      [~, score] = predict(Mdl, psi') ;
+      pred = score(:, 2);
 
-  % try cheap calibration
-  mp = median(pred(train & y > 0)) ;
-  mn = median(pred(train & y < 0)) ;
-  b{c} = (b{c} - mn) / (mp - mn) ;
-  w{c} = w{c} / (mp - mn) ;
-  pred = w{c}'*psi + b{c} ;
+      % try cheap calibration
+      mp = median(pred(train & y > 0)) ;
+      mn = median(pred(train & y < 0)) ;
+      pred = (pred - mn) / (mp - mn) ;
+      pred = pred' ;
+  end
 
   scores{c} = pred ;
 
@@ -244,7 +274,7 @@ end
 % -------------------------------------------------------------------------
 function [code, area] = encoder_extract_for_segments(encoder, imdb, segmentIds, varargin)
 % -------------------------------------------------------------------------
-opts.batchSize = 128 ;
+opts.batchSize = 32 ;
 opts.maxNumLocalDescriptorsReturned = 500 ;
 opts = vl_argparse(opts, varargin) ;
 
@@ -258,12 +288,14 @@ batches = mat2cell(1:numel(imageIds), 1, [opts.batchSize * ones(1, n-1), numel(i
 batchResults = cell(1, numel(batches)) ;
 
 % just use as many workers as are already available
-numWorkers = matlabpool('size') ;
-parfor (b = 1:numel(batches), numWorkers)
-%for b = 1:numel(batches)
+%numWorkers = 5 ;
+%poolobj = parpool('local', numWorkers) ;
+%parfor (b = 1:numel(batches), numWorkers)
+for b = 1:numel(batches)
   batchResults{b} = get_batch_results(imdb, imageIds, batches{b}, ...
     encoder, opts.maxNumLocalDescriptorsReturned) ;
 end
+%delete(poolobj) ;
 
 area = zeros(size(segmentIds)) ;
 code = cell(size(segmentIds)) ;
@@ -373,6 +405,18 @@ switch opts.type
     else
       encoder.net = vl_simplenn_move(encoder.net, 'cpu') ;
       encoder.net.useGpu = false ;
+    end
+    if ~isfield(encoder.net, 'normalization')
+      encoder.net.normalization = encoder.net.meta.normalization ;
+      encoder.net.inputs = encoder.net.meta.inputs ;
+      encoder.net.classes = encoder.net.meta.classes ;
+    else
+      for l=1:numel(encoder.net.layers)
+        encoder.net.layers{l}.dilate = 1 ;
+        encoder.net.layers{l}.opts = {} ;
+        encoder.net.layers{l}.leak = 0 ;
+        encoder.net.layers{l}.precious = 0 ;
+      end
     end
 end
 

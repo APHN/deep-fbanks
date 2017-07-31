@@ -27,9 +27,10 @@ opts.msrcDir = 'data/msrc_c';
 opts.cubDir = 'data/cub';
 opts.vocDir = 'data/VOC2007';
 opts.vocDir12 = 'data/VOC2012';
+opts.bacteriaDir = 'data/bacteria';
 opts.writeResults = false;
 opts.compid = 'comp2';
-opts.publishDir = '~/Dropbox/Collaborations/Mircea Cimpoi/cvpr15/figures' ;
+opts.publishDir = 'data/figures' ;
 opts.suffix = 'baseline' ;
 opts.prefix = 'v22' ;
 opts.model = 'imagenet-vgg-m.mat';
@@ -37,6 +38,7 @@ opts.layer = 13 ; % for D-CNN (R-CNN is the penultimate)
 opts.segProposalType = 'crisp' ;
 opts.gpuId = 1;
 opts.crf = [];
+opts.classifier = '';
 [opts, varargin] = vl_argparse(opts,varargin) ;
 
 opts.expDir = sprintf('data/%s/%s-seed-%02d', opts.prefix, opts.dataset, opts.seed) ;
@@ -140,6 +142,8 @@ switch opts.dataset
     imdb = cub_get_database(opts.cubDir, false);
   case 'alot'
     imdb = alot_get_database(opts.alotDir, 'seed', opts.seed);
+  case 'bacteria'
+    imdb = bacteria_get_database(opts.bacteriaDir, 'seed', opts.seed);
   otherwise
     serror('Unknown dataset %s', opts.dataset) ;
 end

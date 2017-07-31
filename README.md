@@ -1,3 +1,15 @@
+# Deep learning approach to bacterial colony classification
+
+This is fork from [https://github.com/mcimpoi/deep-fbanks](https://github.com/mcimpoi/deep-fbanks). The code was appropriatelly modified in order to cover DIBaS dataset and new classifiers.
+
+In order to run the experiments presented by Zieliński et al. in "Deep learning approach to bacterial colony classification", the following has to be done:
+
+* Download the following code
+* Install all external libraries and download CNN models, as described below (DO NOT download texture databases like FMD - there are not needed)
+* Download DIBaS dataset from [http://misztal.edu.pl/software/databases/dibas/](http://misztal.edu.pl/software/databases/dibas/) and move it into data folder, so there is file with the following path: ./deep-fbanks/data/bacteria/Acinetobacter.baumanii/Acinetobacter.baumanii_0001.tif etc.
+* Run run_experiment.m (NEEDED Matlab 2017a or newer)
+
+
 # Deep filter banks for texture recognition, description, and segmentation
 
 The provided code evaluates R-CNN and FV-CNN descriptors on various texture and material datasets (DTD, FMD, KTH-TIPS2b, ALOT), as well as for other datasets: objects (PASCAL VOC 2007), scenes (MIT Indoor), and fine-grained (CUB 200-2011). The results of these experiments are described in Table 1 and 2 of ** Cimpoi15 ** and Tables 3, 4, 5, and 6 of ** Cimpoi15a. **
