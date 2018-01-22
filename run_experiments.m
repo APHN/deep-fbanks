@@ -1,10 +1,17 @@
 function run_experiments()
+  % export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6:/usr/lib/x86_64-linux-gnu/libprotobuf.so.9
 
   setup;
+  
+  if ismac
+    dataDir = '../../BigData/bacteria/';
+  else
+    dataDir = '/media/bz/C4048A7D048A71EA/BigData/bacteria/';
+  end
 
-  path_model_vgg_m = 'data/models/imagenet-vgg-m.mat';
-  path_model_vgg_vd = 'data/models/imagenet-vgg-verydeep-19-OLD.mat';
-  path_model_alexnet = 'data/models/imagenet-caffe-alex.mat';
+  path_model_vgg_m = [dataDir, 'data/models/imagenet-vgg-m.mat'];
+  path_model_vgg_vd = [dataDir, 'data/models/imagenet-vgg-verydeep-19-OLD.mat'];
+  path_model_alexnet = [dataDir, 'data/models/imagenet-caffe-alex.mat'];
 
   % RCNN (FC-CNN) flavors
   rcnn.name = 'rcnn' ;
@@ -72,6 +79,7 @@ function run_experiments()
     'numPcaDimensions', 80} ;
 
   % Set of experiments to run
+  %{
   setupNameList = {'dsift', ...
       'rcnn', 'dcnn', 'rdcnn', 'srdcnn', ...
       'rcnnalx', 'dcnnalx', 'rdcnnalx', 'srdcnnalx', ...
@@ -80,9 +88,13 @@ function run_experiments()
       {rcnn}, {dcnn}, {rcnn dcnn}, {rcnn dcnn dsift}, ...
       {rcnnalx}, {dcnnalx}, {rcnnalx dcnnalx}, {rcnnalx dcnnalx dsift}, ...
       {rcnnvd}, {dcnnvd}, {rcnnvd dcnnvd}, {rcnnvd dcnnvd dsift}} ;
+  %}
+  setupNameList = {'dsift', 'dcnn'};
+  encoderList = {{dsift}, {dcnn}};
 
-  datasetList = {{'bacteria', 5}} ;
-  classifiers = {'', '--linear', '--polynomial', '--rbf', '--rf'} ;
+  datasetList = {{'bacteriaTrust', 1}} ;
+  %datasetList = {{'bacteriaGray', 5}, {'bacteriaGray5', 5}, {'bacteriaGray3', 5}} ;
+  classifiers = {''} ;
 
   for ii = 1 : numel(datasetList)
     dataset = datasetList{ii} ;
@@ -105,7 +117,7 @@ function run_experiments()
             'suffix', setupNameList{ee}, ...
             'printDatasetInfo', ee == 1, ...
             'writeResults', true, ...
-            'vocDir', 'data/VOC2007', ...
+            'vocDir', [dataDir, 'data/VOC2007'], ...
             'useGpu', false, ...
             'gpuId', 1, ...
             'classifier', classifiers{classifierIndex});

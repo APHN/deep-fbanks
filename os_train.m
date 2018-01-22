@@ -53,7 +53,11 @@ if ~exist(resultPath)
       psi{i} = code;
       clear code;
   end
+  try
   psi = cat(1, psi{:}) ;
+  catch e
+  disp('');
+  end
   imdb.segments.area = area;
 end
 
@@ -310,7 +314,11 @@ for b = 1:numel(batches)
     end
   end
 end
+try
 code = cat(2, code{:}) ;
+catch e
+disp('');
+end
 
 % code is either:
 % - a cell array, each cell containing an array of local features for a

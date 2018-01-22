@@ -17,20 +17,27 @@ opts.printDatasetInfo = false ;
 opts.excludeDifficult = true ;
 opts.encoders = {struct('type', 'rcnn', 'opts', {})} ;
 opts.dataset = 'os' ;
-opts.osDir = 'data/os' ;
-opts.fmdDir = 'data/fmd' ;
-opts.dtdDir = 'data/dtd';
-opts.kthDir = 'data/kth';
-opts.alotDir = 'data/alot';
-opts.mitDir = 'data/mit_indoor';
-opts.msrcDir = 'data/msrc_c';
-opts.cubDir = 'data/cub';
-opts.vocDir = 'data/VOC2007';
-opts.vocDir12 = 'data/VOC2012';
-opts.bacteriaDir = 'data/bacteria';
+if ismac
+  opts.dataDir = '../../BigData/bacteria/';
+else
+  opts.dataDir = '/media/bz/C4048A7D048A71EA/BigData/bacteria/';
+end
+opts.osDir = [opts.dataDir, 'data/os'] ;
+opts.fmdDir = [opts.dataDir, 'data/fmd'] ;
+opts.dtdDir = [opts.dataDir, 'data/dtd'] ;
+opts.kthDir = [opts.dataDir, 'data/kth'] ;
+opts.alotDir = [opts.dataDir, 'data/alot'] ;
+opts.mitDir = [opts.dataDir, 'data/mit_indoor'] ;
+opts.msrcDir = [opts.dataDir, 'data/msrc_c'] ;
+opts.cubDir = [opts.dataDir, 'data/cub'] ;
+opts.vocDir = [opts.dataDir, 'data/VOC2007'] ;
+opts.vocDir12 = [opts.dataDir, 'data/VOC2012'] ;
+opts.bacteriaDir = [opts.dataDir, 'data/bacteria'] ;
+opts.bacteriaGrayDir = [opts.dataDir, 'data/bacteriaGray'] ;
+opts.bacteriaTrustDir = [opts.dataDir, 'data/bacteria'] ;
 opts.writeResults = false;
 opts.compid = 'comp2';
-opts.publishDir = 'data/figures' ;
+opts.publishDir = [opts.dataDir, 'data/figures'] ;
 opts.suffix = 'baseline' ;
 opts.prefix = 'v22' ;
 opts.model = 'imagenet-vgg-m.mat';
@@ -41,7 +48,7 @@ opts.crf = [];
 opts.classifier = '';
 [opts, varargin] = vl_argparse(opts,varargin) ;
 
-opts.expDir = sprintf('data/%s/%s-seed-%02d', opts.prefix, opts.dataset, opts.seed) ;
+opts.expDir = sprintf('%sdata/%s/%s-seed-%02d', opts.dataDir, opts.prefix, opts.dataset, opts.seed) ;
 opts.imdbDir = fullfile(opts.expDir, 'imdb') ;
 if ~iscell(opts.suffix)
   opts.resultPath = fullfile(opts.expDir, sprintf('result-%s.mat', opts.suffix)) ;
@@ -94,11 +101,11 @@ end
 % -------------------------------------------------------------------------
 
 for i = 1:numel(models)
-  if ~exist(fullfile('data/models', models{i}))
+  if ~exist(fullfile([opts.dataDir, 'data/models'], models{i}))
     fprintf('downloading model %s\n', models{i}) ;
-    vl_xmkdir('data/models') ;
+    vl_xmkdir([opts.dataDir, 'data/models']) ;
     urlwrite(fullfile('http://www.vlfeat.org/matconvnet/models', models{i}),...
-      fullfile('data/models', models{i})) ;
+      fullfile([opts.dataDir, 'data/models'], models{i})) ;
   end
 end
 
@@ -144,6 +151,18 @@ switch opts.dataset
     imdb = alot_get_database(opts.alotDir, 'seed', opts.seed);
   case 'bacteria'
     imdb = bacteria_get_database(opts.bacteriaDir, 'seed', opts.seed);
+  case 'bacteria5'
+    imdb = bacteria_get_database_5(opts.bacteriaDir, 'seed', opts.seed);
+  case 'bacteria3'
+    imdb = bacteria_get_database_3(opts.bacteriaDir, 'seed', opts.seed);
+  case 'bacteriaGray'
+    imdb = bacteria_get_database(opts.bacteriaGrayDir, 'seed', opts.seed);
+  case 'bacteriaGray5'
+    imdb = bacteria_get_database_5(opts.bacteriaGrayDir, 'seed', opts.seed);
+  case 'bacteriaGray3'
+    imdb = bacteria_get_database_3(opts.bacteriaGrayDir, 'seed', opts.seed);
+  case 'bacteriaTrust'
+    imdb = bacteria_trust_get_database(opts.bacteriaTrustDir, 'seed', opts.seed);
   otherwise
     serror('Unknown dataset %s', opts.dataset) ;
 end

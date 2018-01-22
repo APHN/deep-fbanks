@@ -17,8 +17,28 @@ area = zeros(1, numel(sel)) ;
 support = cell(1, numel(sel)) ;
 for j = 1:numel(sel)
   if isfield(imdb.segments, 'mask') && ...
-      exist(fullfile(imdb.maskDir, imdb.segments.mask{sel(j)}), 'file')
-    mask = logical(imread(fullfile(imdb.maskDir, imdb.segments.mask{sel(j)}))) ;
+      ~isempty(imdb.segments.mask{sel(j)}) && ...
+      (isstruct(imdb.segments.mask{sel(j)}) || ...
+      exist(fullfile(imdb.maskDir, imdb.segments.mask{sel(j)}), 'file'))
+    if isstruct(imdb.segments.mask{sel(j)}) % for "should I trust you" purposes
+      bigMask = imdb.segments.bigMask{imdb.segments.baseImageId(sel(j))};
+      noSuperpixels = max(bigMask(:));
+      mask = zeros(size(bigMask));
+      for m=1:noSuperpixels
+        if imdb.segments.mask{sel(j)}.smallMask(m)
+          mask(bigMask == m) = 1;
+          radius = 16;
+          tempMask = imerode(mask, strel('disk', radius));
+          while sum(tempMask(:)) == 0
+            radius = radius - 1;
+            tempMask = imerode(mask, strel('disk', radius));
+          end
+          mask = tempMask;
+        end
+      end
+    else
+      mask = logical(imread(fullfile(imdb.maskDir, imdb.segments.mask{sel(j)}))) ;
+    end
   else
     mask = true(height, width);
   end
@@ -89,5 +109,3 @@ if 0
 end
 
 end
-
-
